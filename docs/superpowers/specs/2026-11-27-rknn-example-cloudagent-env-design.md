@@ -1,7 +1,7 @@
 # Luckfox Pico RKNN Example — Cloud Agent 环境设计规格
 
 - **日期**：2026-11-27
-- **状态**：已落地，V1–V4 本机验证通过，V5、V6 待作者在 Cursor 中验证，验证证据见 plan
+- **状态**：已落地，V1–V4 本机验证通过，V5、V6 在下一个 PR 的 Cloud Agent 中核对通过（[`2026-11-28-rknn-example-github-actions-ci-design.md`](2026-11-28-rknn-example-github-actions-ci-design.md) §2.4），验证证据见 plan
 - **分支**：`pi/cloudagent-env`（起点 `origin/dev` `16ef54a`，与上游 `LuckfoxTECH/luckfox_pico_rknn_example` 的 `kernel-5.10.160` 相同），PR [#1](https://github.com/yuangezhizao/luckfox_pico_rknn_example/pull/1)
 - **范围来源**：作者要求为本仓补充 Cursor Cloud Agent 运行所需的文件，参考 luckfox_pico_rkmpi_example（下称 rkmpi 仓）[PR #1](https://github.com/yuangezhizao/luckfox_pico_rkmpi_example/pull/1) 与 luckfox_pico_lvgl_example（下称 lvgl 仓）PR [#1](https://github.com/yuangezhizao/luckfox_pico_lvgl_example/pull/1)–[#3](https://github.com/yuangezhizao/luckfox_pico_lvgl_example/pull/3)、[#9](https://github.com/yuangezhizao/luckfox_pico_lvgl_example/pull/9)，优先参考 rkmpi 仓（最新）
 - **参考实现**：rkmpi 仓 [`dev` `cf2a0db`](https://github.com/yuangezhizao/luckfox_pico_rkmpi_example/tree/cf2a0dbb99416858454bef9f9108a028362e75d9)（PR [#2](https://github.com/yuangezhizao/luckfox_pico_rkmpi_example/pull/2) 合入）。`.cursor/` 6 个文件、根 `AGENTS.md`、`docs/superpowers/AGENTS.md` 由 rkmpi 仓 PR #1 从 lvgl 仓 `dev` `11497f3` 移植而来，PR #2 启用了 `python3-markdown-it` 并更新了 CI 相关说明（§2.2）
@@ -28,7 +28,7 @@
 
 | 方面 | 现状 |
 |---|---|
-| 例程 | `luckfox_pico_retinaface_facenet`（RetinaFace + FaceNet 人脸识别，RGB 屏 `/dev/fb0`）、`luckfox_pico_retinaface_facenet_spidev`（同上，SPI 屏 Pico-ResTouch-LCD，按板型分 `-DLUCKFOX_PICO_PLUS=ON`、`-DLUCKFOX_PICO_PRO_MAX=ON` 两个变体，只影响 SPI 速率）、`luckfox_pico_yolov5`；每种 libc 4 个构建变体 |
+| 例程 | `luckfox_pico_retinaface_facenet`（RetinaFace + FaceNet 人脸识别，RGB 屏 `/dev/fb0`）、`luckfox_pico_retinaface_facenet_spidev`（同上，SPI 屏 Pico-ResTouch-LCD，按板型分 `-DLUCKFOX_PICO_PLUS=ON`、`-DLUCKFOX_PICO_PRO_MAX=ON` 两个变体：前者切换 LCD、触摸与 SD 卡引脚和 SPI 速率，后者对应 Pro 与 Max、宏在源码中未被引用，只决定部署目录名）、`luckfox_pico_yolov5`；每种 libc 4 个构建变体 |
 | 构建入口 | `build.sh` 用 `select` 交互选择 libc、例程，spidev 再选板型，在仓库内 `build/` 中 `cmake` 后 `make -j install`；`build.sh clean` 删除 `build/` 与整个 `install/` |
 | 工具链 | 与 rkmpi 仓相同：uClibc 取 `$LUCKFOX_SDK_PATH/tools/linux/toolchain/arm-rockchip830-linux-uclibcgnueabihf/`，glibc 取 `$GLIBC_COMPILER` 前缀；未设置时 `CMakeLists.txt` 打印 WARNING 后 `return()` |
 | 依赖 | OpenCV-Mobile、`librknnmrt` 按 libc 预编译于 `lib/{glibc,uclibc}`（各 17 MB）；`lib/` 下另有 Waveshare 屏驱动源码 `Config/` `GPIO/` `GUI/` `LCD/` `SPI/`；`3rdparty/` 有 librga、jpeg_turbo、stb_image、allocator（13 MB）；头文件在 `include/`。无需系统库 |
@@ -180,7 +180,7 @@ flowchart LR
 以 rkmpi 仓 `dev` 的三份为底，结构不变：
 
 - **根 `AGENTS.md`**：
-  - 项目与构建：3 个例程、4 个变体（spidev 必须传 `-DLUCKFOX_PICO_PLUS=ON` 或 `-DLUCKFOX_PICO_PRO_MAX=ON` 之一，否则按默认速率编译、安装到 `_demo`），其余同 rkmpi 仓（仓库外构建目录 + `DESTDIR`、`install/` 入库、uClibc 稀疏检出命令、x86 上无法运行）；`build.sh clean` 删除整个已入库的 `install/`。
+  - 项目与构建：3 个例程、4 个变体（spidev 必须传 `-DLUCKFOX_PICO_PLUS=ON` 或 `-DLUCKFOX_PICO_PRO_MAX=ON` 之一，否则按默认引脚与速率编译（与 `PRO_MAX` 相同）、安装到 `_demo`），其余同 rkmpi 仓（仓库外构建目录 + `DESTDIR`、`install/` 入库、uClibc 稀疏检出命令、x86 上无法运行）；`build.sh clean` 删除整个已入库的 `install/`。
   - 模型转换（Q3）：`scripts/luckfox_onnx_to_rknn/` 需要 RKNN-Toolkit2 **1.6.0**，与固件的 `librknnmrt` 1.6.0 对应；PyPI 只有 2.x，生成的模型板上不能加载；whl 取 `airockchip/rknn-toolkit2` 的 `v1.6.0` 标签，Python ≤ 3.11（`.cursor/Dockerfile` 为 3.12，需另装）；镜像不预装。
   - 测试与检查：本仓暂无测试与 CI；只改文档按 `docs/superpowers/AGENTS.md` 检查；改 `example/`、`CMakeLists.txt`、`lib/`、`include/`、`3rdparty/`、`utils/` 交叉编译两种 libc 的全部 4 个变体。
   - 提交约定、`Cursor Cloud specific instructions`：照搬，`gh pr create` 改为 `-R yuangezhizao/luckfox_pico_rknn_example --base dev`。
