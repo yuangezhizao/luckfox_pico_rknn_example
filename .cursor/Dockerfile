@@ -43,7 +43,7 @@ ENV TZ=Asia/Shanghai
 # └──────────────────────────────────────────────────────────────────────────────
 
 # apt 取舍只看当前 FROM digest 的 dpkg：不在 FROM 则显式安装，已在 FROM 则不写。2026-11-27 对该 digest 执行 docker run --rm --entrypoint dpkg-query ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90 -W（amd64，92 个包），下列包均不在 FROM。
-# 下方 apt 包分组与 luckfox_pico_rkmpi_example、luckfox_pico_lvgl_example 仓的同名文件相同（docs/superpowers/specs/2026-11-27-rknn-example-cloudagent-env-design.md §3.2）：先本仓构建依赖（基础工具、平台引导、ARM 交叉工具链、构建系统，本仓暂不安装、以注释保留的 native 验证、32 位运行、preview 工具三组，以及文档检查），再 A / B / C 类；每组前一行组名注释，组内按字母序。被注释的包行由引入相应用途的 PR 取消注释。
+# 下方 apt 包分组与 luckfox_pico_rkmpi_example、luckfox_pico_lvgl_example 仓的同名文件相同（docs/superpowers/specs/2026-11-27-rknn-example-cloudagent-env-design.md §3.2）：先本仓构建依赖（基础工具、平台引导、ARM 交叉工具链、构建系统，本仓暂不安装、以注释保留的 native 验证、32 位运行、preview 工具三组，以及 docs/superpowers/specs/2026-11-28-rknn-example-github-actions-ci-design.md §3.8 所述供 CI 使用的文档检查），再 A / B / C 类；每组前一行组名注释，组内按字母序。被注释的包行由引入相应用途的 PR 取消注释。
 # - 基础工具    : git（构建期即需——本文件末尾的 git config 依赖它）、sudo（容器内提权）、ca-certificates（运行期 https：git clone / curl / gh；注意 Ubuntu 官方 apt 源走 http，本行 apt 自身并不需要它）。
 # - 平台引导    : curl（Cursor 安装 exec-daemon 时用它从 S3 拉取 tar.gz；该步早于平台按 Aptfile 补装 curl，故必须镜像内自带——ubuntu:24.04 基础镜像默认不含 curl）；curl 还被下一层拉 Tailscale 密钥使用。
 # - ARM 交叉工具链: gcc-arm-linux-gnueabihf、g++-arm-linux-gnueabihf（编 32-bit ARM 目标；本仓工具链在此安装）。
@@ -51,7 +51,7 @@ ENV TZ=Asia/Shanghai
 # - native 验证 : 本仓暂不安装。lvgl 仓用于 native 渲染验证（libcjson-dev、libdrm-dev、libsdl2-dev、pkg-config）；本仓的依赖已按 libc 预编译于 lib/，没有 native 构建。
 # - 32 位运行 : 本仓暂不安装 qemu-user。本仓例程启动即调用 RkLunch-stop.sh，并打开摄像头、NPU 与 /dev/fb0 或 /dev/spidev0.0，qemu 至多做加载冒烟，本仓未实测；由引入该冒烟的 PR 评估并取消注释（docs/superpowers/specs/2026-11-27-rknn-example-cloudagent-env-design.md §3.2）。
 # - preview 工具: 本仓暂不安装 imagemagick、xdotool、xvfb。lvgl 仓用于 GUI 截图、取色与点击；本仓的输出在板上屏幕或终端，没有桌面 GUI。xdotool 在 Cloud Agent 中仍由平台 Aptfile 安装。
-# - 文档检查  : python3-markdown-it（luckfox_pico_rkmpi_example 仓的 tests/tools/docs/check-headings.py 依赖 markdown-it-py，本仓用它检查 spec 与 plan；本仓的检查脚本随 CI PR 入库，届时 CI 的文档检查也在本镜像中运行，docs/superpowers/specs/2026-11-27-rknn-example-cloudagent-env-design.md §2.6）。不在 FROM，FROM 也没有 python3，由本包的依赖装上；noble 中为 3.0.0，Python 3.12（2026-11-27 dpkg-query）。
+# - 文档检查  : python3-markdown-it（tests/tools/docs/check-headings.py 依赖 markdown-it-py；CI 的 doc-check job 在本镜像中运行它与 check-samples.sh，docs/superpowers/specs/2026-11-27-rknn-example-cloudagent-env-design.md §2.6）。不在 FROM，FROM 也没有 python3，由本包的依赖装上；noble 中为 3.0.0，Python 3.12（2026-11-27 dpkg-query）。
 # - A 类 iproute2 / jq：`ss` 与 JSON 摘要供 .cursor/start.sh 使用；FROM 没有。procps 已在 FROM，不重复。
 # - B 类 tcpdump / htop / neofetch：抓包与排查 CLI。neofetch 在 universe；本 RUN 带 --no-install-recommends，避免拉上 neofetch 推荐的 chafa、w3m-img 等包。
 # - B 类 tree / iftop / iotop / screen / ncdu / traceroute / nmap / ngrep / conntrack / psmisc / fping / dmidecode：诊断 CLI。apt 写 conntrack（AlmaLinux 包名 conntrack-tools）；不写 conntrack-tools / conntrackd / iotop-c。nmap/ngrep/ncdu 等在 universe，与 neofetch 相同前提。
