@@ -383,3 +383,60 @@ jobs:
           name: luckfox_pico_rknn_example_${{ matrix.libc }}-${{ matrix.rootfs }}_on-${{ matrix.os }}
           if-no-files-found: error
           path: install/${{ matrix.libc }}/
+
+  shellcheck:
+    name: 🐚 ShellCheck
+    # 只做静态检查，不执行脚本；用 runner 预装的 shellcheck，不依赖 build-image，改 Dockerfile 的 PR 上也照常运行
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: 📤 检出本仓
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: 🐚 检查全部 shell 脚本
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck --version
+          # -x -P SCRIPTDIR 跟随脚本中 source 的文件；默认级别（含 style），要求 0 条。
+          # build.sh 是上游文件，暂不检查；修复它的 PR 删去这里的排除（docs/superpowers/specs/2026-11-28-rknn-example-github-actions-ci-design.md §3.5）
+          mapfile -d '' files < <(git ls-files -z '*.sh' | grep -zvx 'build\.sh')
+          printf '%s\n' "${files[@]}"
+          shellcheck -x -P SCRIPTDIR "${files[@]}"
+
+  doc-check:
+    name: 📝 文档检查
+    needs: build-image
+    # 按 docs/superpowers/AGENTS.md 检查全部 spec 与 plan 的编号，并运行检查器自身的样例；每次都完整运行，不按改动文件跳过。
+    # python3-markdown-it 由 CI 镜像提供（.cursor/Dockerfile「文档检查」组），改 Dockerfile 的 PR 上与其他容器 job 一同被跳过；schedule 也运行，验证新镜像
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.build-image.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      # 同 build-example：镜像末尾 USER ubuntu，Actions 要求 job 容器为超级用户
+      options: --user 0
+    steps:
+      - name: 📤 检出本仓
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: 📝 检查编号并运行样例
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 -c 'import markdown_it; print("markdown-it-py", markdown_it.__version__)'
+          python3 tests/tools/docs/check-headings.py
+          bash tests/tools/docs/check-samples.sh
