@@ -12,18 +12,18 @@
 ## 项目与构建
 
 - Luckfox Pico 系列（RV1103 / RV1106）的 RKNN 例程集：`example/` 下 3 个人脸识别 / 目标检测例程，C++ + OpenCV-Mobile + RKNN，CMake 构建；依赖按 libc 预编译于 `lib/{glibc,uclibc}` 与 `3rdparty/`，不需要系统库。本仓是 `LuckfoxTECH/luckfox_pico_rknn_example` 的 fork，默认分支 `dev`。
-- 只能交叉编译，产物是 32 位 ARM。`cmake` 必须传 `-DLIBC_TYPE=glibc|uclibc`、`-DEXAMPLE_DIR=example/<例程>`、`-DEXAMPLE_NAME=<例程>`；对应的 `GLIBC_COMPILER` 或 `LUCKFOX_SDK_PATH` 未设置时 `CMakeLists.txt` 打印 WARNING 后 `return()`，不产生任何构建目标。`luckfox_pico_retinaface_facenet_spidev` 按板型另传 `-DLUCKFOX_PICO_PLUS=ON` 或 `-DLUCKFOX_PICO_PRO_MAX=ON`，每种 libc 共 4 个变体。产物的 libc 要与板上固件一致。
+- 只能交叉编译，产物是 32 位 ARM。`cmake` 必须传 `-DLIBC_TYPE=glibc|uclibc`、`-DEXAMPLE_DIR=example/<例程>`、`-DEXAMPLE_NAME=<例程>`；对应的 `GLIBC_COMPILER` 或 `LUCKFOX_SDK_PATH` 未设置时 `CMakeLists.txt` 打印 WARNING 后 `return()`，不产生任何构建目标。spidev 例程按板型另传 `-DLUCKFOX_PICO_PLUS=ON` 或 `-DLUCKFOX_PICO_PRO_MAX=ON`，每种 libc 共 4 个变体。产物的 libc 要与板上固件一致。
 - **`install/` 已入库**：`CMakeLists.txt` 把安装目录写死为源码树内的 `install/<libc>/<例程>[_plus|_pro_max]_demo/`（命令行 `-DCMAKE_INSTALL_PREFIX` 无效），`make install` 与 `build.sh` 都会改写已跟踪的二进制，`build.sh clean` 删除整个 `install/`。验证构建用仓库外的构建目录与 `make`，需要部署目录时用 `make install DESTDIR=/tmp/stage`（写到 `/tmp/stage/<仓库绝对路径>/install/…`）；`install/` 只在作者要求更新发布产物时改写，误改用 `git restore install/` 还原。
   - glibc：`export GLIBC_COMPILER=/usr/bin/arm-linux-gnueabihf-` 后 `cmake -S . -B /tmp/build-glibc-<例程> -DLIBC_TYPE=glibc -DEXAMPLE_DIR=example/<例程> -DEXAMPLE_NAME=<例程> && make -C /tmp/build-glibc-<例程> -j`。工具链由 `.cursor/Dockerfile` 安装，其他环境 `sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf`。
   - uClibc：无需完整 SDK，稀疏检出工具链：`git clone --depth 1 --filter=blob:none --sparse -b dev https://github.com/yuangezhizao/luckfox-pico.git /tmp/luckfox-pico && git -C /tmp/luckfox-pico sparse-checkout set tools/linux/toolchain`，再以 `LUCKFOX_SDK_PATH=/tmp/luckfox-pico`、`-DLIBC_TYPE=uclibc` 按上一条构建。
 - 产物不能在 x86 VM 上验证功能：例程启动即调用 `RkLunch-stop.sh`，并打开摄像头、NPU 与屏幕，权威验证是物理板子。
-- **模型转换**（`scripts/luckfox_onnx_to_rknn/`）只能用 RKNN-Toolkit2 **1.6.0**（与固件的 `librknnmrt` 一致；PyPI 只有 2.x，转出的模型板上无法加载）：whl 取 `airockchip/rknn-toolkit2` 的 `v1.6.0` 标签，需 Python ≤ 3.11（`.cursor/Dockerfile` 为 3.12）；镜像不预装。
 - C/C++ 代码没有 linter，编译告警只记录、不作门禁。
 
 ## 测试与检查
 
-- 本仓暂无测试与 CI。新增或修改 shell 脚本先在本地跑 `shellcheck -x -P SCRIPTDIR <脚本>`，要求 0 条（含 style 级）。
-- 按改动范围选检查：只改文档按 [`docs/superpowers/AGENTS.md`](docs/superpowers/AGENTS.md)「检查」一条检查 spec 与 plan；改 `example/` 至少交叉编译改动的例程，改 `CMakeLists.txt`、`lib/`、`include/`、`3rdparty/`、`utils/` 交叉编译两种 libc 的全部 4 个变体。plan 另有要求时以 plan 为准。
+- 本仓暂无测试。新增或修改 shell 脚本先在本地跑 `shellcheck -x -P SCRIPTDIR <脚本>`，CI 要求 0 条（含 style 级）。
+- 按改动范围选检查：改了 spec 或 plan 跑 `python3 tests/tools/docs/check-headings.py`（CI 同样检查）；改 `example/` 至少交叉编译改动的例程，改 `CMakeLists.txt`、`lib/`、`include/`、`3rdparty/`、`utils/` 交叉编译两种 libc 的全部 4 个变体。plan 另有要求时以 plan 为准。
+- CI 只在指向 `dev` 的 PR 每次推送、`dev` 上不只改 `.md` 的推送时运行；同一 PR 的新推送会取消正在运行的 CI，只改文档的修订尽量攒到一起推送。修改 `.cursor/Dockerfile` 的 PR 在合并前 `build-image` 必然失败、容器 job 被跳过。
 
 ## 提交约定
 
@@ -41,8 +41,9 @@
 |---|---|
 | 改 Cloud Agent 环境：`.cursor/` 下的 Dockerfile、`install.sh`、`start.sh`、`environment.json` | [`.cursor/AGENTS.md`](.cursor/AGENTS.md) |
 | 写或改 `docs/superpowers/` 下的 spec、plan | [`docs/superpowers/AGENTS.md`](docs/superpowers/AGENTS.md) |
+| 改 workflow、排查 CI 失败 | [`.github/AGENTS.md`](.github/AGENTS.md) |
 | 了解例程的用途、板端部署与运行 | [`README_CN.md`](README_CN.md) |
-| 转换模型（版本见上方） | [`scripts/luckfox_onnx_to_rknn/README_CN.md`](scripts/luckfox_onnx_to_rknn/README_CN.md) |
+| 转换模型（须用 RKNN-Toolkit2 1.6.0） | [`scripts/luckfox_onnx_to_rknn/AGENTS.md`](scripts/luckfox_onnx_to_rknn/AGENTS.md) |
 | 新增给 agent 的约定 | 本文件只写几乎每个任务都用得到、读代码推不出来的内容，其余写进对应目录的 `AGENTS.md`（[放置原则](https://github.com/yuangezhizao/luckfox_pico_lvgl_example/blob/dev/docs/superpowers/specs/2026-11-01-lvgl-example-agents-md-slim-design.md) §3.1）；本文件不超过 8 KiB |
 
 ## Cursor Cloud specific instructions
