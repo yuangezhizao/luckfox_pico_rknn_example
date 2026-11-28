@@ -79,14 +79,16 @@
 - [x] 作者要求对照 GPT-6.2 的两篇官方指南评估 `AGENTS.md`：候选改动作者决定都不改，记为 spec Q5；本 VM 上临时安装的 Docker 与 `rknn-env:*` 镜像保留。
 - [x] 再次完整复查 spec、plan 与 PR 正文，按上述修改同步（spec 的 PR 状态、提交标题的取舍，plan 的本 Task 与 §6，PR 正文的 QA 数与评审注意）；按「以后能沿用、能避坑、模型推不出来」精简附录 A（§6 第 8 条）。
 
-### Task 8：作者在 Cursor 中执行 V5、V6（下一个 PR 开发时）
+### Task 8：作者在 Cursor 中执行 V5、V6（下一个 PR 开发时）✅
 
 合并后，作者在 Cursor 中为本 fork 首次启动 Cloud Agent（合并前不要启动，spec §6）：
 
-- [ ] Dashboard 中新建的 saved environment 的 **environment.json location** 指向本仓 `.cursor/environment.json`。
-- [ ] V5：首个 Build `SUCCEEDED`，日志中 `install.sh` exit 0（grilling `curl` 成功、`openssh-server` 安装、host key 生成）。
-- [ ] V6：`whoami` 为 `ubuntu`；`tailscale status` 的主机名为 `cursor-agent-for-luckfox-pico-rknn-example-<bcId 前 8 位>`；`tailscale serve status` 有 5901 / 1054 / 1055；经 tailnet `ssh ubuntu@<主机名>` 成功、`root` 被拒；`~/.cursor` 与 grilling 属主 `ubuntu`；按根 `AGENTS.md` 的命令完成两种 libc 的构建。
-- [ ] 结果记入下一个 PR 的 spec 或 plan；发现问题时在下一个 PR 修复。
+- [x] Dashboard 中新建的 saved environment 的 **environment.json location** 指向本仓 `.cursor/environment.json`。
+- [x] V5：首个 Build `SUCCEEDED`，日志中 `install.sh` exit 0（grilling `curl` 成功、`openssh-server` 安装、host key 生成）。
+- [x] V6：`whoami` 为 `ubuntu`；`tailscale status` 的主机名为 `cursor-agent-for-luckfox-pico-rknn-example-<bcId 前 8 位>`；`tailscale serve status` 有 5901 / 1054 / 1055；经 tailnet `ssh ubuntu@<主机名>` 成功、`root` 被拒；`~/.cursor` 与 grilling 属主 `ubuntu`；按根 `AGENTS.md` 的命令完成两种 libc 的构建。
+- [x] 结果记入下一个 PR 的 spec 或 plan；发现问题时在下一个 PR 修复。
+
+2026-11-28 在 CI PR 的 Cloud Agent 中核对，全部符合，结果见 spec [`2026-11-28-rknn-example-github-actions-ci-design.md`](../specs/2026-11-28-rknn-example-github-actions-ci-design.md) §2.4。
 
 ## 5. 验证证据
 
